@@ -17,6 +17,7 @@ type Application struct {
 }
 
 func (a *Application) Run(ctx context.Context) error {
+	updates := make(chan client.Update)
 
 	c, err := client.DialTLS(a.Server, nil)
 	if err != nil {
@@ -44,7 +45,7 @@ func (a *Application) Run(ctx context.Context) error {
 				return errors.Wrap(err, "clean failed")
 			}
 			glog.V(2).Infof("cleanup completed => wait for updates")
-			if err := a.waitForUpdates(ctx, c); err != nil {
+			if err := a.waitForUpdates(ctx, c, updates); err != nil {
 				return errors.Wrap(err, "update clean failed")
 			}
 			glog.V(2).Infof("wait for updates completed")
@@ -65,12 +66,10 @@ func (a *Application) cleanInbox(ctx context.Context, c *client.Client) error {
 	return nil
 }
 
-func (a *Application) waitForUpdates(ctx context.Context, c *client.Client) error {
-	updates := make(chan client.Update)
+func (a *Application) waitForUpdates(ctx context.Context, c *client.Client, updates chan client.Update) error {
 	c.Updates = updates
 	defer func() {
 		c.Updates = nil
-		close(updates)
 	}()
 
 	errs := make(chan error)

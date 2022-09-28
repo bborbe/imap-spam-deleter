@@ -15,6 +15,8 @@ var rules = Or(
 	SubjectContains("Diabetes"),
 	SubjectContains("erases fat"),
 	SubjectContains("Kostenlose Schnelltests"),
+	SubjectContains("Beischlaf"),
+	SubjectContains("energiebooster"),
 )
 
 type Rule interface {
