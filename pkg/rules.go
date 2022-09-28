@@ -17,6 +17,7 @@ var rules = Or(
 	SubjectContains("Kostenlose Schnelltests"),
 	SubjectContains("Beischlaf"),
 	SubjectContains("energiebooster"),
+	SubjectContains("befreie dein wildes tier"),
 )
 
 type Rule interface {

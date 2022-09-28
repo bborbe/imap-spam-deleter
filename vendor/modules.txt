@@ -34,8 +34,6 @@ github.com/emersion/go-imap/client
 github.com/emersion/go-imap/commands
 github.com/emersion/go-imap/responses
 github.com/emersion/go-imap/utf7
-# github.com/emersion/go-imap-idle v0.0.0-20210907174914-db2568431445
-## explicit; go 1.13
 # github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21
 ## explicit; go 1.12
 github.com/emersion/go-sasl
@@ -68,6 +66,10 @@ github.com/incu6us/goimports-reviser/reviser
 ## explicit; go 1.14
 github.com/kisielk/errcheck
 github.com/kisielk/errcheck/errcheck
+# github.com/mantyr/go-charset v0.0.0-20160510214718-44d054d82c4a
+## explicit
+github.com/mantyr/go-charset/charset
+github.com/mantyr/go-charset/data
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 ## explicit
 github.com/matttproud/golang_protobuf_extensions/pbutil
