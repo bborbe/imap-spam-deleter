@@ -2,9 +2,8 @@ package pkg
 
 import (
 	"context"
+	"time"
 
-	"github.com/bborbe/run"
-	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
@@ -25,91 +24,90 @@ func (a *Application) Run(ctx context.Context) error {
 	}
 	glog.V(2).Infof("Connected")
 
-	// Don't forget to logout
 	defer func() {
 		if err := c.Logout(); err != nil {
 			glog.V(2).Infof("logout failed: %v", err)
 		}
 	}()
 
-	// Login
 	if err := c.Login(a.Username, a.Password); err != nil {
 		return errors.Wrapf(err, "login failed")
 	}
 	glog.V(2).Infof("Logged in")
 
-	// Select INBOX
-	mbox, err := c.Select("INBOX", false)
-	if err != nil {
-		return errors.Wrapf(err, "select inbox failed")
-	}
-	glog.V(3).Infof("Flags for INBOX: %+v", mbox.Flags)
+	for {
+		select {
+		case <-ctx.Done():
+			glog.V(2).Infof("application shutdown")
 
-	if mbox.Messages == 0 {
-		glog.V(2).Infof("empty inbox")
-		return nil
-	}
-
-	from := uint32(1)
-	to := mbox.Messages
-	seqset := new(imap.SeqSet)
-	seqset.AddRange(from, to)
-	messages := make(chan *imap.Message, 10)
-
-	return run.CancelOnFirstError(
-		ctx,
-		func(ctx context.Context) error {
-			//defer close(messages)
-			return c.Fetch(seqset, []imap.FetchItem{imap.FetchEnvelope}, messages)
-		},
-		func(ctx context.Context) error {
-
-			deleteSet := new(imap.SeqSet)
-
-			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case msg, ok := <-messages:
-					if !ok {
-						glog.V(2).Infof("read all message completed")
-
-						if !a.DryRun && !deleteSet.Empty() {
-							item := imap.FormatFlagsOp(imap.AddFlags, true)
-							flags := []interface{}{imap.DeletedFlag}
-							if err := c.Store(deleteSet, item, flags, nil); err != nil {
-								return errors.Wrap(err, "store failed")
-							}
-
-							if err := c.Expunge(nil); err != nil {
-								return errors.Wrap(err, "expunge failed")
-							}
-						}
-
-						return nil
-					}
-					delete, err := rules.Delete(ctx, msg)
-					if err != nil {
-						return errors.Wrapf(err, "rules failed")
-					}
-
-					if delete {
-						glog.V(2).Infof("DELETE msg %d subject: '%s'", msg.SeqNum, msg.Envelope.Subject)
-						deleteSet.AddNum(msg.SeqNum)
-					} else {
-						glog.V(2).Infof("KEEP msg %d subject: '%s'", msg.SeqNum, msg.Envelope.Subject)
-					}
-				}
+			return ctx.Err()
+		default:
+			if err := a.cleanExisting(ctx, c); err != nil {
+				return errors.Wrap(err, "initial clean failed")
 			}
-		},
-	)
+			glog.V(2).Infof("inital cleanup completed => wait for updates")
+			if err := a.cleanUpdates(ctx, c); err != nil {
+				return errors.Wrap(err, "update clean failed")
+			}
+			time.Sleep(time.Second)
+		}
+	}
 }
 
-var rules = Or(
-	SubjectContains("Bauchfett"),
-	SubjectContains("Samurai-Küchenmesser"),
-	SubjectContains("Erektionen"),
-	SubjectContains("Sexualorgane"),
-	SubjectContains("Diabetes"),
-	SubjectContains("erases fat"),
-)
+func (a *Application) cleanExisting(ctx context.Context, c *client.Client) error {
+	mailboxCleaner := NewMailboxCleaner(c, a.DryRun)
+	if err := mailboxCleaner.Clean(ctx, "INBOX"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *Application) cleanUpdates(ctx context.Context, c *client.Client) error {
+	glog.V(2).Infof("cleanUpdates")
+	updates := make(chan client.Update)
+	c.Updates = updates
+	defer func() {
+		c.Updates = nil
+		close(updates)
+	}()
+
+	errs := make(chan error)
+	stop := make(chan struct{})
+	go func() {
+		errs <- c.Idle(stop, nil)
+		close(errs)
+	}()
+	defer close(stop)
+
+	for {
+		glog.V(2).Infof("wait for update started")
+
+		select {
+		case update := <-updates:
+			glog.V(2).Infof("update with type %T", update)
+			switch obj := update.(type) {
+			case *client.MessageUpdate:
+				glog.V(2).Infof("MessageUpdate from %s", obj.Message.Envelope.Subject)
+
+			case *client.MailboxUpdate:
+				glog.V(2).Infof("MailboxUpdate: %s", obj.Mailbox.Name)
+				if obj.Mailbox.Name != "INBOX" {
+					glog.V(2).Infof("skip mailbox %s", obj.Mailbox.Name)
+					continue
+				}
+				return nil
+			case *client.StatusUpdate:
+				glog.V(2).Infof("StatusUpdate %+v", obj)
+			case *client.ExpungeUpdate:
+				glog.V(2).Infof("ExpungeUpdate %+v", obj)
+			}
+			glog.V(2).Infof("handle update completed")
+		case err := <-errs:
+			glog.V(2).Infof("unexpected error: %v", err)
+		case <-ctx.Done():
+			glog.V(2).Infof("ctx canceled")
+			return ctx.Err()
+		}
+	}
+
+}

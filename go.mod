@@ -7,6 +7,7 @@ require (
 	github.com/bborbe/argument v1.0.1
 	github.com/bborbe/run v0.0.0-20220401102348-00c0ef2459bb
 	github.com/emersion/go-imap v1.2.1
+	github.com/emersion/go-imap-idle v0.0.0-20210907174914-db2568431445
 	github.com/golang/glog v1.0.0
 	github.com/incu6us/goimports-reviser v0.1.6
 	github.com/kisielk/errcheck v1.6.0

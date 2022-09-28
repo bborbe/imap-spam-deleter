@@ -6,6 +6,17 @@ import (
 	"github.com/emersion/go-imap"
 )
 
+var rules = Or(
+	SubjectContains("Bauchfett"),
+	SubjectContains("Samurai-Küchenmesser"),
+	SubjectContains("Erektionen"),
+	SubjectContains("Erektionshilfen"),
+	SubjectContains("Sexualorgane"),
+	SubjectContains("Diabetes"),
+	SubjectContains("erases fat"),
+	SubjectContains("Kostenlose Schnelltests"),
+)
+
 type Rule interface {
 	Delete(ctx context.Context, msg *imap.Message) (delete bool, err error)
 }
