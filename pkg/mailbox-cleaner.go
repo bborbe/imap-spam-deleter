@@ -35,7 +35,7 @@ func (m *mailboxCleaner) Clean(ctx context.Context, name string) error {
 	}
 	glog.V(3).Infof("Flags for INBOX: %+v", mbox.Flags)
 	if mbox.Messages == 0 {
-		glog.V(2).Infof("empty inbox")
+		glog.V(2).Infof("inbox is empty => skip")
 		return nil
 	}
 	glog.V(2).Infof("handle %d messages", mbox.Messages)

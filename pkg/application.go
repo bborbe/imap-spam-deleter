@@ -38,23 +38,26 @@ func (a *Application) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			glog.V(2).Infof("application shutdown")
-
 			return ctx.Err()
 		default:
-			if err := a.cleanExisting(ctx, c); err != nil {
-				return errors.Wrap(err, "initial clean failed")
+			if err := a.cleanInbox(ctx, c); err != nil {
+				return errors.Wrap(err, "clean failed")
 			}
-			glog.V(2).Infof("inital cleanup completed => wait for updates")
-			if err := a.cleanUpdates(ctx, c); err != nil {
+			glog.V(2).Infof("cleanup completed => wait for updates")
+			if err := a.waitForUpdates(ctx, c); err != nil {
 				return errors.Wrap(err, "update clean failed")
 			}
-			time.Sleep(time.Second)
+			glog.V(2).Infof("wait for updates completed")
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.NewTimer(time.Second).C:
+			}
 		}
 	}
 }
 
-func (a *Application) cleanExisting(ctx context.Context, c *client.Client) error {
+func (a *Application) cleanInbox(ctx context.Context, c *client.Client) error {
 	mailboxCleaner := NewMailboxCleaner(c, a.DryRun)
 	if err := mailboxCleaner.Clean(ctx, "INBOX"); err != nil {
 		return err
@@ -62,8 +65,7 @@ func (a *Application) cleanExisting(ctx context.Context, c *client.Client) error
 	return nil
 }
 
-func (a *Application) cleanUpdates(ctx context.Context, c *client.Client) error {
-	glog.V(2).Infof("cleanUpdates")
+func (a *Application) waitForUpdates(ctx context.Context, c *client.Client) error {
 	updates := make(chan client.Update)
 	c.Updates = updates
 	defer func() {
@@ -80,15 +82,10 @@ func (a *Application) cleanUpdates(ctx context.Context, c *client.Client) error 
 	defer close(stop)
 
 	for {
-		glog.V(2).Infof("wait for update started")
 
 		select {
 		case update := <-updates:
-			glog.V(2).Infof("update with type %T", update)
 			switch obj := update.(type) {
-			case *client.MessageUpdate:
-				glog.V(2).Infof("MessageUpdate from %s", obj.Message.Envelope.Subject)
-
 			case *client.MailboxUpdate:
 				glog.V(2).Infof("MailboxUpdate: %s", obj.Mailbox.Name)
 				if obj.Mailbox.Name != "INBOX" {
@@ -96,14 +93,18 @@ func (a *Application) cleanUpdates(ctx context.Context, c *client.Client) error 
 					continue
 				}
 				return nil
+			case *client.MessageUpdate:
+				glog.V(3).Infof("MessageUpdate from %s", obj.Message.Envelope.Subject)
 			case *client.StatusUpdate:
-				glog.V(2).Infof("StatusUpdate %+v", obj)
+				glog.V(3).Infof("StatusUpdate %+v", obj)
 			case *client.ExpungeUpdate:
-				glog.V(2).Infof("ExpungeUpdate %+v", obj)
+				glog.V(3).Infof("ExpungeUpdate %+v", obj)
+			default:
+				glog.V(3).Infof("update with type %T", update)
 			}
-			glog.V(2).Infof("handle update completed")
 		case err := <-errs:
 			glog.V(2).Infof("unexpected error: %v", err)
+			return nil
 		case <-ctx.Done():
 			glog.V(2).Infof("ctx canceled")
 			return ctx.Err()
