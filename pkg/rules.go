@@ -18,6 +18,17 @@ var rules = Or(
 	SubjectContains("Beischlaf"),
 	SubjectContains("energiebooster"),
 	SubjectContains("befreie dein wildes tier"),
+	SubjectContains("Sex oder Covid"),
+	SubjectContains("Sportwetten Trick zum absahnen"),
+	SubjectContains("gefährlicher als Zucker"),
+	And(
+		SubjectContains("Scheck"),
+		SubjectContains("US-Dollar"),
+	),
+	SubjectContains("AW: Deine Stromrechnungen gehört der Vergangenheit an"),
+	SubjectContains("Bauchfett"),
+	SubjectContains("kinderleicht die präzisesten dünnsten Scheiben"),
+	SubjectContains("Anthelminthikum"),
 )
 
 type Rule interface {
