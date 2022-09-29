@@ -29,6 +29,7 @@ var rules = Or(
 	SubjectContains("Bauchfett"),
 	SubjectContains("kinderleicht die präzisesten dünnsten Scheiben"),
 	SubjectContains("Anthelminthikum"),
+	SubjectContains("Sehr geehrter Begünstigter"),
 )
 
 type Rule interface {
