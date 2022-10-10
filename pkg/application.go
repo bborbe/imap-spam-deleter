@@ -93,6 +93,14 @@ func (a *Application) waitForUpdates(ctx context.Context, c *client.Client, upda
 				}
 				return nil
 			case *client.MessageUpdate:
+				if obj.Message == nil {
+					glog.Warning("Message is nil")
+					continue
+				}
+				if obj.Message.Envelope == nil {
+					glog.Warning("Message.Envelope is nil")
+					continue
+				}
 				glog.V(3).Infof("MessageUpdate from %s", obj.Message.Envelope.Subject)
 			case *client.StatusUpdate:
 				glog.V(3).Infof("StatusUpdate %+v", obj)
