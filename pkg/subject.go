@@ -3,7 +3,6 @@ package pkg
 import (
 	"context"
 	"mime"
-	"strings"
 
 	"github.com/emersion/go-imap"
 	charset "github.com/mantyr/go-charset/charset"
@@ -32,38 +31,26 @@ func decodeSubject(subject string) (string, error) {
 }
 
 func SubjectEqual(expectedSubject string) Rule {
-	return RuleFunc(func(ctx context.Context, msg *imap.Message) (bool, error) {
-		subject, err := Subject(ctx, msg)
-		if err != nil {
-			return false, err
-		}
-		if subject == expectedSubject {
-			return true, nil
-		}
-		return false, nil
-	})
+	return SubjectMatch(MatcherEqual(expectedSubject))
+
 }
 
-func SubjectPrefix(prefix string) Rule {
-	return RuleFunc(func(ctx context.Context, msg *imap.Message) (bool, error) {
-		subject, err := Subject(ctx, msg)
-		if err != nil {
-			return false, err
-		}
-		if strings.HasPrefix(subject, prefix) {
-			return true, nil
-		}
-		return false, nil
-	})
+func SubjectPrefix(expectedPrefix string) Rule {
+	return SubjectMatch(MatcherPrefix(expectedPrefix))
+
 }
 
-func SubjectContains(substr string) Rule {
+func SubjectContains(expectedSubstring string) Rule {
+	return SubjectMatch(MatcherContains(expectedSubstring))
+}
+
+func SubjectMatch(matcher Matcher) Rule {
 	return RuleFunc(func(ctx context.Context, msg *imap.Message) (bool, error) {
 		subject, err := Subject(ctx, msg)
 		if err != nil {
 			return false, err
 		}
-		if strings.Contains(subject, substr) {
+		if matcher.Match(subject) {
 			return true, nil
 		}
 		return false, nil

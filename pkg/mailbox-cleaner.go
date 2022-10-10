@@ -61,7 +61,7 @@ func (m *mailboxCleaner) Clean(ctx context.Context, name string) error {
 		func(ctx context.Context) error {
 
 			deleteSet := new(imap.SeqSet)
-
+			rules := BuildRules()
 			for {
 				select {
 				case <-ctx.Done():
